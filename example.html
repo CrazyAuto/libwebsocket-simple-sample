@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<title>Websocket example</title>
+<script>
+	var socket = new WebSocket( "ws://" + document.domain + ':' + location.port, "example-protocol" );
+	//function update(msg) { document.getElementById("num").innerHTML = msg; }
+	socket.onopen = function() { console.log("socket open"); update("open"); }
+	socket.onclose = function() { console.log("socket close"); update("closed"); }
+	socket.onmessage = function(msg) { console.log("socket message: " + msg.data); update(msg.data); }
+
+	function update(msg)
+	{
+		var objDiv=document.getElementById("input_text_content");
+		objDiv.innerHTML += "<p>"+msg+"</p>";
+		objDiv.scrollTop = objDiv.scrollHeight;
+	}
+
+	function get_text_content(input_text_obj)
+	{
+		console.log("input_text_content: " + input_text_obj.value);
+		console.log("SENDING: " + input_text_obj.value);
+		socket.send(input_text_obj.value);
+		/*
+		if(input_text_obj.value.length>=10)
+		{
+			socket.send(input_text_obj.value.substr(0,10)+input_text_obj.value);
+		}
+		else
+		{
+			//fill with spaces
+			var spaces="";
+			for(var i=0;i<10-input_text_obj.value.length;i++)
+			{
+				spaces+=" ";
+			}
+
+			console.log("SENDING: " + input_text_obj.value);
+
+			socket.send(input_text_obj.value);
+			//perror("Too few characters for the username!");
+		}
+		*/
+	}
+
+	function send(msg)
+	{
+		socket.send(msg);
+	}
+</script>
+</head>
+<body>
+	<div id="input_text_content" style="overflow:auto;height:300px;width:600px;"></div>
+	<input type="text" id="chattext" />
+	<input type="button" onClick="get_text_content(document.getElementById('chattext'));" value="Send message" />
+<body>
+<!--p id="num"></p-->
+</body>
+</html>

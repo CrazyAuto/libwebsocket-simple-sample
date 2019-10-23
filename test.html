@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Websocket example</title>
+<script>
+	function perror(msg)
+	{
+		document.getElementById("error").innerHTML += "<p>"+msg+"</p>";
+	}
+	function pchat(user,msg)
+	{
+		var objDiv=document.getElementById("chat");
+		objDiv.innerHTML += "<p>"+user+": "+msg+"</p>";
+		objDiv.scrollTop = objDiv.scrollHeight;
+	}
+	var socket = new WebSocket( "ws://" + document.domain + ':' + location.port, "example-protocol" );
+	function update(msg)
+	{
+		if(msg.length>1)
+		{
+			var fun=msg.charAt(0);
+			var content=msg.substr(1);
+
+			switch(fun)
+			{
+				case 'C':
+					var user=content.substr(0,10);
+					var message=content.substr(10);
+					pchat(user,message);
+				break;
+				case 'S':
+					perror("GUESS THE BOX!!!");
+				break;
+				case 'G':
+					var user=content.substr(0,2);
+					var message=content.substr(2);
+					pchat(user,message);
+				break;
+			}
+		}
+		else
+		{
+			perror("Invalid msg size!");
+		}
+	}
+	socket.onopen = function() { console.log("socket open"); update("open"); }
+	socket.onclose = function() { console.log("socket close"); update("closed"); }
+	socket.onmessage = function(msg) { console.log("socket message: " + msg.data); update(msg.data); }
+
+	function get_chat_content(user_obj,chat_obj)
+	{
+		console.log("user: " + user_obj.value);
+		console.log("chat: " + chat_obj.value);
+
+		if(user_obj.value.length>=10)
+		{
+			socket.send('C'+user_obj.value.substr(0,10)+chat_obj.value);
+		}
+		else
+		{
+			//fill with spaces
+			var spaces="";
+			for(var i=0;i<10-user_obj.value.length;i++)
+			{
+				spaces+=" ";
+			}
+
+			console.log("SENDING: " + 'C'+user_obj.value+spaces+chat_obj.value);
+
+			socket.send('C'+user_obj.value+spaces+chat_obj.value);
+			//perror("Too few characters for the username!");
+		}
+	}
+
+	function set_box(num)
+	{
+		socket.send('S'+num);
+	}
+
+	function guess_box(num)
+	{
+		socket.send('G'+num);
+	}
+</script>
+</head>
+<body>
+User name: <input type="text" id="userid" />
+<div id="chat" style="overflow:auto;height:300px;width:600px;"></div>
+<input type="text" id="chattext" />
+<input type="button" onClick="get_chat_content(document.getElementById('userid'),document.getElementById('chattext'));" value="Send message" />
+
+<!-- GAME STARTS HERE! -->
+
+<br>
+<br>
+
+<input type="button" onClick="set_box(1);" value="SET_BOX1" />
+<input type="button" onClick="set_box(2);" value="SET_BOX2" />
+<input type="button" onClick="set_box(3);" value="SET_BOX3" />
+
+<br>
+
+<input type="button" onClick="guess_box(1);" value="GUESS_BOX1" />
+<input type="button" onClick="guess_box(2);" value="GUESS_BOX2" />
+<input type="button" onClick="guess_box(3);" value="GUESS_BOX3" />
+
+<!-- FOR LOGGING -->
+
+<div id="error"></div>
+</body>
+</html>
