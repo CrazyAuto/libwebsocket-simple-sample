@@ -4,6 +4,14 @@
 
 #define WS_LOG_ERROR(fmt,args...) printf("%s(%d)-%s -> " #fmt "\n", __FILE__, __LINE__, __FUNCTION__, ##args);
 #define WS_LOG_DEBUG(fmt,args...) printf("%s(%d)-%s -> " #fmt "\n", __FILE__, __LINE__, __FUNCTION__, ##args);
+#define EXAMPLE_RX_BUFFER_BYTES (100)
+
+enum protocols
+{
+	PROTOCOL_HTTP = 0,
+	PROTOCOL_EXAMPLE,
+	PROTOCOL_COUNT
+};
 
 static int callback_http( struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len )
 {
@@ -19,7 +27,6 @@ static int callback_http( struct lws *wsi, enum lws_callback_reasons reason, voi
 	return 0;
 }
 
-#define EXAMPLE_RX_BUFFER_BYTES (20)
 struct payload
 {
 	unsigned char data[LWS_SEND_BUFFER_PRE_PADDING + EXAMPLE_RX_BUFFER_BYTES + LWS_SEND_BUFFER_POST_PADDING];
@@ -48,13 +55,6 @@ static int callback_example( struct lws *wsi, enum lws_callback_reasons reason, 
 
 	return 0;
 }
-
-enum protocols
-{
-	PROTOCOL_HTTP = 0,
-	PROTOCOL_EXAMPLE,
-	PROTOCOL_COUNT
-};
 
 static struct lws_protocols protocols[] =
 {

@@ -7,15 +7,18 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <pthread.h>
 
 pthread_t read_from_pipe_thread;
 static struct lws *web_socket = NULL;
-static int counter=0;
-static int fifo_fd = -1;
+static int websocket_rx;
+static int websocket_tx;
 char buffer_from_fifo[256]={0};
 
 
-#define EXAMPLE_RX_BUFFER_BYTES (20)
+#define EXAMPLE_RX_BUFFER_BYTES (100)
+#define WEBSOCKET_RX "/tmp/websocket_rx"
+#define WEBSOCKET_TX "/tmp/websocket_tx"
 #define WS_LOG_ERROR(fmt,args...) printf("%s(%d)-%s -> " #fmt "\n", __FILE__, __LINE__, __FUNCTION__, ##args);
 #define WS_LOG_DEBUG(fmt,args...) printf("%s(%d)-%s -> " #fmt "\n", __FILE__, __LINE__, __FUNCTION__, ##args);
 
@@ -29,7 +32,11 @@ static int callback_example( struct lws *wsi, enum lws_callback_reasons reason, 
 
 		case LWS_CALLBACK_CLIENT_RECEIVE:
 			/* Handle incomming messages here. */
-            printf("message incoming,%s",(char *)in);
+            WS_LOG_DEBUG("message incoming,%s",(char *)in);
+            if(write(websocket_rx,in,len)<=0)
+            {
+                WS_LOG_DEBUG("some error happens when write to fifo");
+            }
 			break;
 
 		case LWS_CALLBACK_CLIENT_WRITEABLE:
@@ -97,10 +104,11 @@ static void InitSignalHandler()
 }
 
 
-int create_fifo(void)
+int create_fifo(char *fifo_name)
 {
-    const char *fifo_name = "/tmp/websocket";
+    //const char *fifo_name = "/tmp/websocket_tx";
     int ret = 0;
+    int fifo_fd;
 
     if(access(fifo_name, F_OK) == -1)
     {
@@ -124,10 +132,10 @@ int create_fifo(void)
     else
     {
         WS_LOG_DEBUG("!!!!open fifo SUCCESS\n");
-        return 0;
+        //return 0;
     }
-
-    InitSignalHandler();
+    //InitSignalHandler();
+    return fifo_fd;
 }
 
 
@@ -139,13 +147,13 @@ static void read_from_pipe_thread_func(void)
 
     memset(&tv, 0, sizeof(struct timeval));
     FD_ZERO(&readfds);
-    FD_SET(fifo_fd,&readfds);
+    FD_SET(websocket_tx,&readfds);
 
     while(1)
     {
         tv.tv_sec = 10;
         tv.tv_usec = 0;
-        iret = select(fifo_fd + 1, &readfds, NULL, NULL, &tv);
+        iret = select(websocket_tx+ 1, &readfds, NULL, NULL, &tv);
         if (0 >= iret)
         {
             WS_LOG_DEBUG("select  timeout,errno:%d\n",errno);
@@ -153,12 +161,16 @@ static void read_from_pipe_thread_func(void)
         }
         else
         {
-            if(FD_ISSET(fifo_fd, &readfds))
+            if(FD_ISSET(websocket_tx, &readfds))
             {
-                if(read(fifo_fd,buffer_from_fifo,sizeof(buffer_from_fifo)) > 0)
+                if(read(websocket_tx,buffer_from_fifo,sizeof(buffer_from_fifo)) > 0)
                 {
                      WS_LOG_DEBUG("read from fifo %s",buffer_from_fifo);
-                     lws_callback_on_writable( web_socket );
+                     if(web_socket)
+                     {
+                        WS_LOG_ERROR("web socket not init");
+                        lws_callback_on_writable( web_socket );
+                     }
                 }
                 else
                     WS_LOG_DEBUG("read error");
@@ -171,6 +183,7 @@ static void read_from_pipe_thread_func(void)
 
 int main( int argc, char *argv[] )
 {
+    int ret=-1;
 	struct lws_context_creation_info info;
 	memset( &info, 0, sizeof(info) );
 
@@ -193,13 +206,30 @@ int main( int argc, char *argv[] )
 		ccinfo.protocol = protocols[PROTOCOL_EXAMPLE].name;
 		web_socket = lws_client_connect_via_info(&ccinfo);
 	}
-    create_fifo();
-    if(!pthread_create(&read_from_pipe_thread, NULL, (void*)&read_from_pipe_thread_func, NULL))
+    websocket_rx = create_fifo(WEBSOCKET_RX);
+    websocket_tx = create_fifo(WEBSOCKET_TX);
+
+    InitSignalHandler();
+
+    ret = pthread_create(&read_from_pipe_thread, NULL, (void*)&read_from_pipe_thread_func, NULL);
+    if(ret)
     {
-        WS_LOG_DEBUG("create thread error");
+        WS_LOG_DEBUG("create thread error,error:%d,errno:%d",ret,errno);
     }
     while( 1 )
 	{
+    	if( !web_socket )
+    	{
+    		struct lws_client_connect_info ccinfo = {0};
+    		ccinfo.context = context;
+    		ccinfo.address = "localhost";
+    		ccinfo.port = 8000;
+    		ccinfo.path = "/";
+    		ccinfo.host = lws_canonical_hostname( context );
+    		ccinfo.origin = "origin";
+    		ccinfo.protocol = protocols[PROTOCOL_EXAMPLE].name;
+    		web_socket = lws_client_connect_via_info(&ccinfo);
+    	}
        // lws_callback_on_writable( web_socket );
 		lws_service( context, 100000);
 	}
