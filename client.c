@@ -22,6 +22,12 @@ char buffer_from_fifo[256]={0};
 #define WS_LOG_ERROR(fmt,args...) printf("%s(%d)-%s -> " #fmt "\n", __FILE__, __LINE__, __FUNCTION__, ##args);
 #define WS_LOG_DEBUG(fmt,args...) printf("%s(%d)-%s -> " #fmt "\n", __FILE__, __LINE__, __FUNCTION__, ##args);
 
+enum protocols
+{
+	PROTOCOL_EXAMPLE = 0,
+	PROTOCOL_COUNT
+};
+
 static int callback_example( struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len )
 {
 	switch( reason )
@@ -66,23 +72,6 @@ static int callback_example( struct lws *wsi, enum lws_callback_reasons reason, 
 
 	return 0;
 }
-
-enum protocols
-{
-	PROTOCOL_EXAMPLE = 0,
-	PROTOCOL_COUNT
-};
-
-static struct lws_protocols protocols[] =
-{
-	{
-		"example-protocol",
-		callback_example,
-		0,
-		EXAMPLE_RX_BUFFER_BYTES,
-	},
-	{ NULL, NULL, 0, 0 } /* terminator */
-};
 
 static void SignalHandler(int nSigno)
 {
@@ -146,13 +135,13 @@ static void read_from_pipe_thread_func(void)
     fd_set readfds;
 
     memset(&tv, 0, sizeof(struct timeval));
-    FD_ZERO(&readfds);
-    FD_SET(websocket_tx,&readfds);
 
     while(1)
     {
         tv.tv_sec = 10;
         tv.tv_usec = 0;
+        FD_ZERO(&readfds);
+        FD_SET(websocket_tx,&readfds);
         iret = select(websocket_tx+ 1, &readfds, NULL, NULL, &tv);
         if (0 >= iret)
         {
@@ -181,6 +170,17 @@ static void read_from_pipe_thread_func(void)
     }
 }
 
+static struct lws_protocols protocols[] =
+{
+	{
+		"example-protocol",
+		callback_example,
+		0,
+		EXAMPLE_RX_BUFFER_BYTES,
+	},
+	{ NULL, NULL, 0, 0 } /* terminator */
+};
+
 int main( int argc, char *argv[] )
 {
     int ret=-1;
@@ -198,7 +198,7 @@ int main( int argc, char *argv[] )
 	{
 		struct lws_client_connect_info ccinfo = {0};
 		ccinfo.context = context;
-		ccinfo.address = "localhost";
+		ccinfo.address = "192.168.3.202";
 		ccinfo.port = 8000;
 		ccinfo.path = "/";
 		ccinfo.host = lws_canonical_hostname( context );
@@ -222,7 +222,7 @@ int main( int argc, char *argv[] )
     	{
     		struct lws_client_connect_info ccinfo = {0};
     		ccinfo.context = context;
-    		ccinfo.address = "localhost";
+    		ccinfo.address = "192.168.3.202";
     		ccinfo.port = 8000;
     		ccinfo.path = "/";
     		ccinfo.host = lws_canonical_hostname( context );

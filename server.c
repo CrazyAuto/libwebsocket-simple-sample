@@ -13,6 +13,13 @@ enum protocols
 	PROTOCOL_COUNT
 };
 
+struct payload
+{
+	unsigned char data[LWS_SEND_BUFFER_PRE_PADDING + EXAMPLE_RX_BUFFER_BYTES + LWS_SEND_BUFFER_POST_PADDING];
+	size_t len;
+} received_payload;
+
+
 static int callback_http( struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len )
 {
 	switch( reason )
@@ -26,12 +33,6 @@ static int callback_http( struct lws *wsi, enum lws_callback_reasons reason, voi
 
 	return 0;
 }
-
-struct payload
-{
-	unsigned char data[LWS_SEND_BUFFER_PRE_PADDING + EXAMPLE_RX_BUFFER_BYTES + LWS_SEND_BUFFER_POST_PADDING];
-	size_t len;
-} received_payload;
 
 static int callback_example( struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len )
 {
